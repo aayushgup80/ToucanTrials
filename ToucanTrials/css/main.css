@@ -1,0 +1,85 @@
+/* ============================================================
+TOUCANTRIALS - MAIN STYLESHEET
+============================================================ */
+
+/* Import Game Fonts */
+@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Montserrat:ital,wght@0,400;0,600;0,800;1,400&display=swap');
+
+/* Base & Typography */
+:root {
+--color-amber: #fbbf24;
+--color-amber-glow: rgba(251, 191, 36, 0.5);
+--color-green-glow: rgba(16, 185, 129, 0.15);
+}
+
+body {
+font-family: 'Montserrat', sans-serif;
+background-color: #050505; /* Deep dark base */
+color: #ffffff;
+-webkit-font-smoothing: antialiased;
+}
+
+.font-game {
+font-family: 'Bebas Neue', sans-serif;
+letter-spacing: 0.05em;
+}
+
+/* Backgrounds & Aesthetic */
+.bg-jungle-depths {
+background: radial-gradient(circle at 50% 20%, #0a2411 0%, #030a05 60%, #000000 100%);
+}
+
+.bg-jungle-card {
+background: linear-gradient(145deg, rgba(16, 185, 129, 0.05) 0%, rgba(0, 0, 0, 0.8) 100%);
+}
+
+/* Glass & UI Panels */
+.glass-panel {
+background: rgba(15, 15, 15, 0.7);
+backdrop-filter: blur(16px);
+-webkit-backdrop-filter: blur(16px);
+border: 1px solid rgba(255, 255, 255, 0.08);
+box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
+}
+
+.glass-modal {
+background: rgba(10, 15, 12, 0.85);
+backdrop-filter: blur(24px);
+-webkit-backdrop-filter: blur(24px);
+border: 1px solid rgba(16, 185, 129, 0.2);
+box-shadow: 0 24px 64px 0 rgba(0, 0, 0, 0.8), inset 0 0 0 1px rgba(255,255,255,0.05);
+}
+
+/* Glow Effects */
+.glow-text-amber {
+text-shadow: 0 0 15px var(--color-amber-glow), 0 0 30px rgba(251, 191, 36, 0.2);
+}
+
+.glow-box-amber {
+box-shadow: 0 0 20px var(--color-amber-glow);
+}
+
+.hover-glow:hover {
+box-shadow: 0 0 25px var(--color-amber-glow);
+border-color: rgba(251, 191, 36, 0.8);
+}
+
+/* Custom Scrollbar for generic elements */
+::-webkit-scrollbar {
+width: 8px;
+}
+::-webkit-scrollbar-track {
+background: #0a0a0a;
+}
+::-webkit-scrollbar-thumb {
+background: #2a2a2a;
+border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+background: #fbbf24;
+}
+
+/* Game Canvas overrides (For game.html support) */
+canvas {
+display: block;
+}

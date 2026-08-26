@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>ToucanTrials - Authentication</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Alpine.js -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+    <!-- Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/main.css">
+</head>
+
+
+<body
+    class="bg-jungle-depths min-h-screen flex items-center justify-center relative overflow-hidden"
+    x-data="authPage()"
+>
+
+    <!-- Ambient Background Effects -->
+    <div class="absolute top-0 left-0 w-full h-full pointer-events-none overflow-hidden z-0">
+        <div class="absolute -top-40 -left-40 w-96 h-96 bg-amber-500/10 rounded-full blur-[100px]"></div>
+        <div class="absolute bottom-0 right-0 w-[600px] h-[600px] bg-emerald-600/10 rounded-full blur-[120px]"></div>
+    </div>
+
+
+    <!-- Navigation -->
+    <nav class="absolute top-0 left-0 w-full p-6 z-20 flex justify-between items-center">
+
+        <a
+            href="index.html"
+            class="flex items-center gap-2 text-white/70 hover:text-white transition group"
+        >
+            <svg
+                class="w-5 h-5 group-hover:-translate-x-1 transition-transform"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+            >
+                <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M10 19l-7-7m0 0l7-7m-7 7h18"
+                ></path>
+            </svg>
+
+            <span class="font-bold uppercase tracking-widest text-sm mt-0.5">
+                Back to Home
+            </span>
+        </a>
+
+
+        <a
+            href="index.html"
+            class="flex items-center gap-2 group cursor-pointer"
+        >
+            <div
+                class="w-6 h-6 rounded bg-gradient-to-br from-amber-400 to-amber-600
+                       flex items-center justify-center
+                       shadow-[0_0_10px_rgba(251,191,36,0.3)]"
+            >
+                <span class="font-game text-black mt-1 text-sm">
+                    T
+                </span>
+            </div>
+
+            <span class="font-game text-xl tracking-wider text-white mt-1 hidden sm:block">
+                TOUCANTRIALS
+            </span>
+        </a>
+
+    </nav>
+
+
+    <!-- AUTH CARD -->
+    <main class="relative z-10 w-full max-w-md px-4">
+
+        <!-- Header -->
+        <div class="text-center mb-8">
+
+            <h1
+                class="font-game text-6xl text-white glow-text-amber
+                       leading-none mb-2 drop-shadow-xl"
+            >
+                TOUCANTRIALS
+            </h1>
+
+            <p class="text-emerald-400 font-bold tracking-[0.2em] uppercase text-sm">
+                ENTER THE TRIAL
+            </p>
+
+        </div>
+
+
+        <div class="glass-modal rounded-xl overflow-hidden shadow-2xl border border-white/10">
+
+            <!-- Tabs -->
+            <div class="flex border-b border-white/10 bg-black/40">
+
+                <button
+                    @click="switchMode('login')"
+                    :class="
+                        mode === 'login'
+                        ? 'text-amber-400 border-b-2 border-amber-400 bg-white/5'
+                        : 'text-white/50 hover:text-white hover:bg-white/5 border-b-2 border-transparent'
+                    "
+                    class="flex-1 py-4 text-sm font-bold uppercase tracking-widest transition-colors"
+                >
+                    Login
+                </button>
+
+
+                <button
+                    @click="switchMode('signup')"
+                    :class="
+                        mode === 'signup'
+                        ? 'text-amber-400 border-b-2 border-amber-400 bg-white/5'
+                        : 'text-white/50 hover:text-white hover:bg-white/5 border-b-2 border-transparent'
+                    "
+                    class="flex-1 py-4 text-sm font-bold uppercase tracking-widest transition-colors"
+                >
+                    Sign Up
+                </button>
+
+            </div>
+
+
+            <div class="p-8">
+
+                <!-- MESSAGE -->
+                <div
+                    x-show="message !== ''"
+                    x-transition
+                    class="mb-6 p-3 rounded
+                           bg-amber-500/20
+                           border border-amber-500/30
+                           text-amber-300
+                           text-sm font-medium text-center
+                           shadow-[0_0_15px_rgba(251,191,36,0.1)]"
+                >
+                    <span x-text="message"></span>
+                </div>
+
+
+                <!-- LOGIN FORM -->
+                <form
+                    x-show="mode === 'login'"
+                    @submit.prevent="handleLogin()"
+                    class="space-y-5"
+                >
+
+                    <div>
+
+                        <label
+                            class="block text-xs font-bold text-white/70
+                                   uppercase tracking-wider mb-1"
+                        >
+                            Email
+                        </label>
+
+                        <input
+                            type="email"
+                            required
+                            x-model.trim="email"
+                            autocomplete="email"
+                            placeholder="player@example.com"
+                            class="w-full bg-black/50 border border-white/10 rounded
+                                   px-4 py-3 text-white placeholder-white/30
+                                   focus:outline-none focus:border-amber-400
+                                   focus:ring-1 focus:ring-amber-400 transition-all"
+                        >
+
+                    </div>
+
+
+                    <div>
+
+                        <label
+                            class="block text-xs font-bold text-white/70
+                                   uppercase tracking-wider mb-1"
+                        >
+                            Password
+                        </label>
+
+                        <input
+                            type="password"
+                            required
+                            x-model="password"
+                            autocomplete="current-password"
+                            placeholder="••••••••"
+                            class="w-full bg-black/50 border border-white/10 rounded
+                                   px-4 py-3 text-white placeholder-white/30
+                                   focus:outline-none focus:border-amber-400
+                                   focus:ring-1 focus:ring-amber-400 transition-all"
+                        >
+
+                    </div>
+
+
+                    <div class="pt-2">
+
+                        <button
+                            type="submit"
+                            :disabled="loading"
+                            class="w-full bg-amber-400 hover:bg-amber-300
+                                   disabled:opacity-50 disabled:cursor-not-allowed
+                                   text-black font-bold uppercase tracking-widest
+                                   py-3 rounded transition-colors
+                                   shadow-[0_0_15px_rgba(251,191,36,0.3)]"
+                        >
+
+                            <span x-show="!loading">
+                                Login
+                            </span>
+
+                            <span x-show="loading">
+                                ENTERING...
+                            </span>
+
+                        </button>
+
+                    </div>
+
+                </form>
+
+
+                <!-- SIGNUP FORM -->
+                <form
+                    x-show="mode === 'signup'"
+                    @submit.prevent="handleSignup()"
+                    class="space-y-4"
+                >
+
+                    <div>
+
+                        <label
+                            class="block text-xs font-bold text-white/70
+                                   uppercase tracking-wider mb-1"
+                        >
+                            Username
+                        </label>
+
+                        <input
+                            type="text"
+                            required
+                            minlength="3"
+                            maxlength="20"
+                            x-model.trim="username"
+                            autocomplete="username"
+                            placeholder="Runner99"
+                            class="w-full bg-black/50 border border-white/10 rounded
+                                   px-4 py-2.5 text-white placeholder-white/30
+                                   focus:outline-none focus:border-amber-400
+                                   focus:ring-1 focus:ring-amber-400 transition-all"
+                        >
+
+                    </div>
+
+
+                    <div>
+
+                        <label
+                            class="block text-xs font-bold text-white/70
+                                   uppercase tracking-wider mb-1"
+                        >
+                            Email
+                        </label>
+
+                        <input
+                            type="email"
+                            required
+                            x-model.trim="email"
+                            autocomplete="email"
+                            placeholder="player@example.com"
+                            class="w-full bg-black/50 border border-white/10 rounded
+                                   px-4 py-2.5 text-white placeholder-white/30
+                                   focus:outline-none focus:border-amber-400
+                                   focus:ring-1 focus:ring-amber-400 transition-all"
+                        >
+
+                    </div>
+
+
+                    <div>
+
+                        <label
+                            class="block text-xs font-bold text-white/70
+                                   uppercase tracking-wider mb-1"
+                        >
+                            Password
+                        </label>
+
+                        <input
+                            type="password"
+                            required
+                            minlength="6"
+                            x-model="password"
+                            autocomplete="new-password"
+                            placeholder="••••••••"
+                            class="w-full bg-black/50 border border-white/10 rounded
+                                   px-4 py-2.5 text-white placeholder-white/30
+                                   focus:outline-none focus:border-amber-400
+                                   focus:ring-1 focus:ring-amber-400 transition-all"
+                        >
+
+                    </div>
+
+
+                    <div>
+
+                        <label
+                            class="block text-xs font-bold text-white/70
+                                   uppercase tracking-wider mb-1"
+                        >
+                            Confirm Password
+                        </label>
+
+                        <input
+                            type="password"
+                            required
+                            minlength="6"
+                            x-model="confirmPassword"
+                            autocomplete="new-password"
+                            placeholder="••••••••"
+                            class="w-full bg-black/50 border border-white/10 rounded
+                                   px-4 py-2.5 text-white placeholder-white/30
+                                   focus:outline-none focus:border-amber-400
+                                   focus:ring-1 focus:ring-amber-400 transition-all"
+                        >
+
+                    </div>
+
+
+                    <div class="pt-3">
+
+                        <button
+                            type="submit"
+                            :disabled="loading"
+                            class="w-full bg-emerald-500 hover:bg-emerald-400
+                                   disabled:opacity-50 disabled:cursor-not-allowed
+                                   text-black font-bold uppercase tracking-widest
+                                   py-3 rounded transition-colors
+                                   shadow-[0_0_15px_rgba(16,185,129,0.3)]"
+                        >
+
+                            <span x-show="!loading">
+                                Create Account
+                            </span>
+
+                            <span x-show="loading">
+                                CREATING...
+                            </span>
+
+                        </button>
+
+                    </div>
+
+                </form>
+
+
+                <!-- GUEST -->
+                <div class="mt-8 pt-6 border-t border-white/10">
+
+                    <a
+                        href="index.html"
+                        class="block w-full text-center py-3
+                               bg-white/5 hover:bg-white/10
+                               border border-white/10 text-white
+                               font-bold uppercase tracking-widest
+                               rounded transition-colors"
+                    >
+                        Continue as Guest
+                    </a>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </main>
+
+
+    <!-- SUPABASE -->
+
+<script src="js/supabase/client.js"></script>
+<script src="js/supabase/auth.js"></script>
+
+
+
+    <!-- AUTH PAGE LOGIC -->
+    <script>
+
+        function authPage() {
+
+            return {
+
+                mode: "login",
+
+                message: "",
+
+                loading: false,
+
+                email: "",
+
+                password: "",
+
+                username: "",
+
+                confirmPassword: "",
+
+
+                switchMode(newMode) {
+
+                    this.mode = newMode;
+
+                    this.message = "";
+
+                    this.email = "";
+                    this.password = "";
+                    this.confirmPassword = "";
+
+                },
+
+
+                async handleLogin() {
+
+                    this.message = "";
+                    this.loading = true;
+
+                    try {
+
+                        await ToucanAuth.signIn(
+                            this.email,
+                            this.password
+                        );
+
+
+                        this.message =
+                            "LOGIN SUCCESSFUL — ENTERING THE TRIAL";
+
+
+                        setTimeout(() => {
+
+                            window.location.href =
+                                "index.html";
+
+                        }, 800);
+
+                    }
+
+                    catch (error) {
+
+                        console.error(
+                            "Login error:",
+                            error
+                        );
+
+                        this.message =
+                            error?.message ||
+                            "Login failed. Please check your email and password.";
+
+                    }
+
+                    finally {
+
+                        this.loading = false;
+
+                    }
+
+                },
+
+
+                async handleSignup() {
+
+                    this.message = "";
+
+
+                    if (
+                        this.password !==
+                        this.confirmPassword
+                    ) {
+
+                        this.message =
+                            "PASSWORDS DO NOT MATCH.";
+
+                        return;
+
+                    }
+
+
+                    if (this.password.length < 6) {
+
+                        this.message =
+                            "PASSWORD MUST CONTAIN AT LEAST 6 CHARACTERS.";
+
+                        return;
+
+                    }
+
+
+                    if (this.username.length < 3) {
+
+                        this.message =
+                            "USERNAME MUST CONTAIN AT LEAST 3 CHARACTERS.";
+
+                        return;
+
+                    }
+
+
+                    this.loading = true;
+
+
+                    try {
+
+                        const data =
+                            await ToucanAuth.signUp(
+                                this.username,
+                                this.email,
+                                this.password
+                            );
+
+
+                        if (data?.session) {
+
+                            this.message =
+                                "ACCOUNT CREATED — WELCOME TO TOUCANTRIALS!";
+
+
+                            setTimeout(() => {
+
+                                window.location.href =
+                                    "index.html";
+
+                            }, 1000);
+
+                        }
+
+                        else {
+
+                            this.message =
+                                "ACCOUNT CREATED — CHECK YOUR EMAIL TO CONFIRM YOUR ACCOUNT.";
+
+                        }
+
+                    }
+
+                    catch (error) {
+
+                        console.error(
+                            "Signup error:",
+                            error
+                        );
+
+                        this.message =
+                            error?.message ||
+                            "Could not create your account.";
+
+                    }
+
+                    finally {
+
+                        this.loading = false;
+
+                    }
+
+                }
+
+            };
+
+        }
+
+    </script>
+
+</body>
+</html>

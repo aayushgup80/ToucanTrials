@@ -1,0 +1,661 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>ToucanTrials - Level 1</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- Alpine.js -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+    <!-- Babylon.js -->
+    <script src="https://cdn.babylonjs.com/babylon.js"></script>
+    <script src="https://cdn.babylonjs.com/loaders/babylonjs.loaders.min.js"></script>
+
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/main.css">
+</head>
+
+<body class="m-0 overflow-hidden bg-black select-none">
+
+    <!-- GAME LOADER -->
+<div
+    id="gameLoader"
+    class="fixed inset-0 z-[9999] flex items-center justify-center bg-black"
+>
+    <div class="text-center">
+
+        <div
+            class="mx-auto mb-6 h-12 w-12 animate-spin rounded-full
+                   border-4 border-white/10 border-t-amber-400"
+        ></div>
+
+        <h1
+            class="text-2xl font-black tracking-[0.25em] text-white"
+        >
+            TOUCANTRIALS
+        </h1>
+
+        <p
+            id="loaderStatus"
+            class="mt-3 text-xs uppercase tracking-[0.2em] text-white/40"
+        >
+            Loading Trial...
+        </p>
+
+    </div>
+</div>
+
+    <!-- GAME CANVAS -->
+    <canvas
+        id="gameCanvas"
+        class="absolute inset-0 w-full h-full touch-none outline-none">
+    </canvas>
+
+    <!-- GAME HUD -->
+    <div
+        x-data="gameHUD()"
+        class="pointer-events-none absolute inset-0 text-white select-none">
+
+        <!-- Top Left: Title & Controls Hint -->
+        <div class="absolute top-20 left-5 space-y-2" x-show="controlsVisible" x-transition>
+            <div class="rounded-xl bg-black/50 px-4 py-3 backdrop-blur-md border border-white/10 shadow-lg">
+                <p class="text-xs font-bold uppercase tracking-widest text-amber-400">
+                    ToucanTrials • Level 1
+                </p>
+                <p class="mt-1 text-2xl font-black">
+                    JUNGLE CANOPY
+                </p>
+            </div>
+            
+            <div class="rounded-xl bg-black/40 px-4 py-2.5 backdrop-blur-md border border-white/5 text-xs text-white/70 space-y-1">
+                <p><span class="font-bold text-amber-300" x-text="bindings.moveForward.toUpperCase()"></span> / <span class="font-bold text-amber-300" x-text="bindings.moveLeft.toUpperCase()"></span> / <span class="font-bold text-amber-300" x-text="bindings.moveBackward.toUpperCase()"></span> / <span class="font-bold text-amber-300" x-text="bindings.moveRight.toUpperCase()"></span> : Move</p>
+                <p><span class="font-bold text-amber-300">RMB + Drag</span> : Rotate Camera</p>
+                <p><span class="font-bold text-amber-300" x-text="bindings.jump.toUpperCase()"></span> : Jump / Double Jump</p>
+                <p><span class="font-bold text-amber-300" x-text="bindings.dash.toUpperCase()"></span> : Dash</p>
+                <p><span class="font-bold text-amber-300">Scroll</span> : Zoom Camera</p>
+            </div>
+        </div>
+
+        <!-- Top Right: Coins Counter -->
+<!-- Top Right: Run Timer + Coins -->
+
+<div class="absolute top-5 right-5 space-y-2">
+
+    <!-- TIMER -->
+
+    <div
+        class="rounded-xl bg-black/50 px-5 py-3
+               text-right backdrop-blur-md
+               border border-white/10 shadow-lg"
+    >
+
+        <p
+            class="text-xs font-bold uppercase
+                   tracking-widest text-emerald-400"
+        >
+            TIME
+        </p>
+
+        <p
+            id="runTimer"
+            class="mt-1 text-2xl font-black text-white"
+        >
+            00:00.000
+        </p>
+
+    </div>
+
+
+    <!-- COINS -->
+
+    <div
+        class="rounded-xl bg-black/50 px-5 py-3
+               text-right backdrop-blur-md
+               border border-white/10 shadow-lg"
+    >
+
+        <p
+            class="text-xs font-bold uppercase
+                   tracking-widest text-amber-400"
+        >
+            COINS
+        </p>
+
+        <p
+            id="coinCounter"
+            class="mt-1 text-2xl font-black text-amber-300"
+        >
+            0
+        </p>
+
+    </div>
+
+</div>
+
+        <!-- Center Top: Pause Button -->
+        <button
+            @click="paused = true"
+            class="pointer-events-auto absolute top-5 left-1/2 -translate-x-1/2
+                   rounded-xl bg-black/50 px-6 py-2.5 text-xs font-bold uppercase tracking-wider
+                   backdrop-blur-md border border-white/10 transition hover:bg-black/70 hover:scale-105 active:scale-95">
+            PAUSE
+        </button>
+
+        <!-- SETTINGS BUTTON -->
+        <button
+            @click="settingsOpen = true"
+            class="pointer-events-auto absolute top-5 left-5 ml-80
+                   rounded-xl bg-black/50 px-4 py-2.5 text-xs font-bold uppercase tracking-wider
+                   backdrop-blur-md border border-white/10 transition hover:bg-black/70 hover:scale-105 active:scale-95">
+            ⚙ SETTINGS
+        </button>
+
+        <!--FPS COUNTER-->
+
+        <div id="fps-counter" x-show="fpsVisible" style="position: fixed; top: 10px; left: 10px; padding: 5px; background: rgba(0,0,0,0.7); color: #fff; font-family: monospace; z-index: 9999;">0 FPS</div>
+
+
+        <!-- SETTINGS MODAL -->
+        <div
+            x-show="settingsOpen"
+            x-transition
+            class="pointer-events-auto absolute inset-0 flex items-center justify-center
+                   bg-black/80 backdrop-blur-md z-[60] p-4">
+
+            <div class="w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-2xl
+                        bg-zinc-900/95 border border-white/10 p-7 shadow-2xl">
+
+                <div class="flex items-center justify-between mb-6">
+                    <div>
+                        <h2 class="text-3xl font-black text-amber-400">SETTINGS</h2>
+                        <p class="mt-1 text-xs text-white/40 uppercase tracking-widest">
+                            ToucanTrials Configuration
+                        </p>
+                    </div>
+
+                    <button
+                        @click="settingsOpen = false"
+                        class="rounded-lg bg-white/10 px-3 py-2 text-white/70 hover:bg-white/20">
+                        ✕
+                    </button>
+                </div>
+
+                <!-- Gameplay / HUD -->
+                <div class="space-y-3">
+                    <h3 class="text-sm font-bold uppercase tracking-widest text-white/50">
+                        Interface
+                    </h3>
+
+                    <label class="flex items-center justify-between rounded-xl bg-white/5 border border-white/10 p-4 cursor-pointer">
+                        <div>
+                            <p class="font-bold text-white">Enable FPS Overlay</p>
+                            <p class="text-xs text-white/40 mt-1">Show the live FPS counter.</p>
+                        </div>
+                        <input
+                            type="checkbox"
+                            x-model="fpsVisible"
+                            @change="saveSettings()"
+                            class="h-5 w-5 accent-amber-400">
+                    </label>
+
+                    <label class="flex items-center justify-between rounded-xl bg-white/5 border border-white/10 p-4 cursor-pointer">
+                        <div>
+                            <p class="font-bold text-white">Enable Control Menu</p>
+                            <p class="text-xs text-white/40 mt-1">Show the controls panel during gameplay.</p>
+                        </div>
+                        <input
+                            type="checkbox"
+                            x-model="controlsVisible"
+                            @change="saveSettings()"
+                            class="h-5 w-5 accent-amber-400">
+                    </label>
+                </div>
+
+                <!-- Keybinds -->
+                <div class="mt-7">
+                    <div class="flex items-center justify-between mb-3">
+                        <div>
+                            <h3 class="text-sm font-bold uppercase tracking-widest text-white/50">
+                                Keybinds
+                            </h3>
+                            <p class="text-xs text-white/40 mt-1">
+                                Click a binding, then press the key you want.
+                            </p>
+                        </div>
+
+                        <button
+                            @click="resetKeybinds()"
+                            class="text-xs font-bold uppercase tracking-widest text-amber-400 hover:text-amber-300">
+                            Reset Defaults
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <template x-for="action in keybindOrder" :key="action">
+                            <div class="flex items-center justify-between rounded-xl bg-white/5 border border-white/10 p-3">
+                                <span class="font-bold text-sm text-white" x-text="actionLabels[action]"></span>
+
+                                <button
+                                    @click="startRebind(action)"
+                                    class="min-w-24 rounded-lg bg-black/50 border border-white/10 px-3 py-2
+                                           text-xs font-black uppercase tracking-wider text-amber-300
+                                           hover:bg-white/10 transition"
+                                    :class="rebinding === action ? 'ring-2 ring-amber-400 bg-amber-400/10' : ''"
+                                    x-text="rebinding === action ? 'PRESS KEY...' : formatKey(bindings[action])">
+                                </button>
+                            </div>
+                        </template>
+                    </div>
+
+                    <p
+                        x-show="rebindMessage"
+                        x-text="rebindMessage"
+                        class="mt-3 text-center text-xs font-bold text-amber-300">
+                    </p>
+                </div>
+
+                <button
+                    @click="settingsOpen = false"
+                    class="mt-7 w-full rounded-xl bg-amber-400 px-5 py-3.5
+                           font-bold text-black transition hover:bg-amber-300 active:scale-95">
+                    DONE
+                </button>
+            </div>
+        </div>
+
+        <!-- Pause Modal -->
+        <div
+            x-show="paused"
+            x-transition:enter="transition ease-out duration-200"
+            x-transition:enter-start="opacity-0 scale-95"
+            x-transition:enter-end="opacity-100 scale-100"
+            x-transition:leave="transition ease-in duration-150"
+            x-transition:leave-start="opacity-100 scale-100"
+            x-transition:leave-end="opacity-0 scale-95"
+            class="pointer-events-auto absolute inset-0 flex items-center justify-center
+                   bg-black/75 backdrop-blur-md z-50">
+
+            <div class="w-84 rounded-2xl bg-zinc-900/90 border border-white/10 p-8 text-center shadow-2xl">
+                <h1 class="text-3xl font-black tracking-tight text-amber-400">PAUSED</h1>
+                <p class="mt-1 text-xs text-white/50 uppercase tracking-widest">
+                    ToucanTrials Platformer
+                </p>
+
+                <div class="mt-8 space-y-3">
+                    <button
+                        @click="paused = false"
+                        class="w-full rounded-xl bg-amber-400 px-5 py-3.5
+                               font-bold text-black transition hover:bg-amber-300 active:scale-95 shadow-lg">
+                        RESUME
+                    </button>
+
+                    <button
+                        onclick="location.reload()"
+                        class="w-full rounded-xl bg-white/10 px-5 py-3.5
+                               font-semibold transition hover:bg-white/20 active:scale-95 border border-white/10">
+                        RESTART LEVEL
+                    </button>
+<button
+                        @click="goHome()"
+                        class="w-full rounded-xl bg-amber-400 px-5 py-3.5
+                               font-bold text-black transition hover:bg-amber-300 active:scale-95 shadow-lg">
+                        🔙 BACK
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<!-- SUPABASE -->
+<script src="js/supabase/client.js"></script>
+<script src="js/supabase/auth.js"></script>
+<script src="js/supabase/scores.js"></script>
+
+
+<!-- GAME ENGINE -->
+
+<script src="js/game/physics.js"></script>
+<script src="js/game/camera.js"></script>
+<script src="js/game/player.js"></script>
+<script src="js/game/level.js"></script>
+<script src="js/game/engine.js"></script>
+
+<script>
+function gameHUD() {
+    const defaults = {
+        moveForward: "w",
+        moveLeft: "a",
+        moveBackward: "s",
+        moveRight: "d",
+        jump: "space",
+        dash: "shift"
+    };
+
+    let savedSettings = {};
+    let savedBindings = {};
+
+    try {
+        savedSettings = JSON.parse(localStorage.getItem("toucantrialsSettings") || "{}");
+        savedBindings = JSON.parse(localStorage.getItem("toucantrialsKeybinds") || "{}");
+    } catch (e) {
+        console.warn("ToucanTrials settings could not be loaded.", e);
+    }
+
+    return {
+        paused: false,
+        settingsOpen: false,
+        fpsVisible: savedSettings.fpsVisible !== false,
+        controlsVisible: savedSettings.controlsVisible !== false,
+
+        bindings: { ...defaults, ...savedBindings },
+        defaults,
+
+        keybindOrder: [
+            "moveForward",
+            "moveLeft",
+            "moveBackward",
+            "moveRight",
+            "jump",
+            "dash"
+        ],
+
+        actionLabels: {
+            moveForward: "Move Forward",
+            moveLeft: "Move Left",
+            moveBackward: "Move Back",
+            moveRight: "Move Right",
+            jump: "Jump",
+            dash: "Dash"
+        },
+
+        rebinding: null,
+        rebindMessage: "",
+
+        init() {
+            this.publishBindings();
+        },
+
+        saveSettings() {
+            localStorage.setItem(
+                "toucantrialsSettings",
+                JSON.stringify({
+                    fpsVisible: this.fpsVisible,
+                    controlsVisible: this.controlsVisible
+                })
+            );
+        },
+
+        publishBindings() {
+            window.toucanKeybinds = { ...this.bindings };
+
+            window.dispatchEvent(
+                new CustomEvent("toucantrials-keybind-changed", {
+                    detail: { ...this.bindings }
+                })
+            );
+        },
+
+        formatKey(key) {
+            if (key === "space") return "SPACE";
+            if (key === "escape") return "ESC";
+            return String(key).toUpperCase();
+        },
+
+        startRebind(action) {
+            this.rebinding = action;
+            this.rebindMessage =
+                `Press a key for ${this.actionLabels[action]}...`;
+        },
+
+        resetKeybinds() {
+            this.bindings = { ...this.defaults };
+
+            localStorage.setItem(
+                "toucantrialsKeybinds",
+                JSON.stringify(this.bindings)
+            );
+
+            this.publishBindings();
+
+            this.rebinding = null;
+            this.rebindMessage = "Default keybinds restored.";
+        },
+
+        goHome() {
+            window.location.href = "index.html";
+        }
+    };
+}
+
+
+/* ============================================================
+   KEYBIND CUSTOMIZATION
+   ============================================================ */
+
+const canonicalKeys = {
+    moveForward: "w",
+    moveLeft: "a",
+    moveBackward: "s",
+    moveRight: "d",
+    jump: "space",
+    dash: "shift"
+};
+
+let activeBindings = {
+    moveForward: "w",
+    moveLeft: "a",
+    moveBackward: "s",
+    moveRight: "d",
+    jump: "space",
+    dash: "shift"
+};
+
+window.addEventListener("toucantrials-keybind-changed", (event) => {
+    activeBindings = {
+        ...activeBindings,
+        ...(event.detail || {})
+    };
+});
+
+
+function normalizeGameKey(key) {
+    return key === " " ? "space" : String(key).toLowerCase();
+}
+
+
+function getActionForKey(key) {
+    return Object.keys(activeBindings).find(
+        action => activeBindings[action] === key
+    );
+}
+
+
+/*
+ * Capture keyboard input before the existing InputManager.
+ * This lets us translate custom keys into the game's existing
+ * W/A/S/D/Space/Shift input system without changing physics,
+ * movement, jumping, or dash code.
+ */
+window.addEventListener("keydown", (event) => {
+
+    const root = document.querySelector("[x-data]");
+
+    if (!root) return;
+
+    const state = Alpine.$data(root);
+
+    if (state && state.rebinding) {
+
+        event.preventDefault();
+        event.stopImmediatePropagation();
+
+        const key = normalizeGameKey(event.key);
+
+        if (key === "escape") {
+            state.rebinding = null;
+            state.rebindMessage = "Rebind cancelled.";
+            return;
+        }
+
+        if (
+            ["control", "alt", "meta", "tab", "capslock"].includes(key)
+        ) {
+            state.rebindMessage =
+                "Choose a normal gameplay key.";
+            return;
+        }
+
+        const conflict = Object.keys(state.bindings).find(
+            action =>
+                action !== state.rebinding &&
+                state.bindings[action] === key
+        );
+
+        if (conflict) {
+            state.rebindMessage =
+                `That key is already bound to ${state.actionLabels[conflict]}.`;
+            return;
+        }
+
+        state.bindings[state.rebinding] = key;
+
+        localStorage.setItem(
+            "toucantrialsKeybinds",
+            JSON.stringify(state.bindings)
+        );
+
+        state.publishBindings();
+
+        state.rebindMessage =
+            `${state.actionLabels[state.rebinding]} → ${state.formatKey(key)}`;
+
+        state.rebinding = null;
+
+        return;
+    }
+
+
+    const key = normalizeGameKey(event.key);
+    const action = getActionForKey(key);
+
+    if (action) {
+
+        event.preventDefault();
+        event.stopImmediatePropagation();
+
+        const canonical = canonicalKeys[action];
+
+        window.dispatchEvent(
+            new KeyboardEvent("keydown", {
+                key: canonical === "space" ? " " : canonical,
+                bubbles: true
+            })
+        );
+
+        return;
+    }
+
+
+    /*
+     * If a default gameplay key has been replaced,
+     * stop the old key from still working.
+     */
+    const defaults = new Set([
+        "w",
+        "a",
+        "s",
+        "d",
+        "space",
+        "shift"
+    ]);
+
+    if (
+        defaults.has(key) &&
+        !Object.values(activeBindings).includes(key)
+    ) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+    }
+
+}, true);
+
+
+window.addEventListener("keyup", (event) => {
+
+    const key = normalizeGameKey(event.key);
+    const action = getActionForKey(key);
+
+    if (action) {
+
+        event.preventDefault();
+        event.stopImmediatePropagation();
+
+        const canonical = canonicalKeys[action];
+
+        window.dispatchEvent(
+            new KeyboardEvent("keyup", {
+                key: canonical === "space" ? " " : canonical,
+                bubbles: true
+            })
+        );
+
+        return;
+    }
+
+
+    const defaults = new Set([
+        "w",
+        "a",
+        "s",
+        "d",
+        "space",
+        "shift"
+    ]);
+
+    if (
+        defaults.has(key) &&
+        !Object.values(activeBindings).includes(key)
+    ) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+    }
+
+}, true);
+</script>
+
+<script>
+    const fpsDisplay = document.getElementById('fps-counter');
+
+let lastTime = performance.now();
+let frameCount = 0;
+
+function calculateFPS() {
+    const now = performance.now();
+    frameCount++;
+
+    // Update the counter text exactly once per second
+    if (now - lastTime >= 1000) {
+        const fps = Math.round((frameCount * 1000) / (now - lastTime));
+        fpsDisplay.textContent = `${fps} FPS`;
+        
+        // Reset counters for the next interval
+        lastTime = now;
+        frameCount = 0;
+    }
+
+    // Continuously request the next layout repaint
+    requestAnimationFrame(calculateFPS);
+}
+
+// Fire the loop
+requestAnimationFrame(calculateFPS);
+
+</script>
+</body>
+</html>
