@@ -2,521 +2,286 @@
 // ENGINE INITIALIZATION
 // ============================================================
 
-const canvas =
-    document.getElementById("gameCanvas");
+const canvas = document.getElementById("gameCanvas");
+if (!canvas) throw new Error("ToucanTrials: gameCanvas was not found.");
 
-
-if (!canvas) {
-
-    throw new Error(
-        "ToucanTrials: gameCanvas was not found."
-    );
-
-}
-
-
-const engine =
-    new BABYLON.Engine(
-        canvas,
-        true,
-        {
-            preserveDrawingBuffer: true,
-            stencil: true,
-            antialias: true
-        }
-    );
+const engine = new BABYLON.Engine(canvas, true, {
+    preserveDrawingBuffer: true,
+    stencil: true,
+    antialias: true
+});
 
 function hideGameLoader() {
-
-    const loader =
-        document.getElementById("gameLoader");
-
+    const loader = document.getElementById("gameLoader");
     if (!loader) return;
-
-    loader.style.transition =
-        "opacity 400ms ease";
-
+    loader.style.transition = "opacity 400ms ease";
     loader.style.opacity = "0";
-
-    setTimeout(() => {
-
-        loader.remove();
-
-    }, 450);
+    setTimeout(() => loader.remove(), 450);
 }
 
 // ============================================================
-// CREATE SCENE
+// SCENE
 // ============================================================
 
 const createScene = () => {
+    const scene = new BABYLON.Scene(engine);
+    scene.clearColor = new BABYLON.Color4(0.4, 0.7, 0.9, 1);
 
-    const scene =
-        new BABYLON.Scene(engine);
-
-
-    // BRIGHT SKY
-    scene.clearColor =
-        new BABYLON.Color4(
-            0.4,
-            0.7,
-            0.9,
-            1
-        );
-
-
-    // ========================================================
-    // LIGHTING
-    // ========================================================
-
-    const ambientLight =
-        new BABYLON.HemisphericLight(
-            "ambientLight",
-            new BABYLON.Vector3(0, 1, 0),
-            scene
-        );
-
-
+    const ambientLight = new BABYLON.HemisphericLight("ambientLight", new BABYLON.Vector3(0, 1, 0), scene);
     ambientLight.intensity = 1.2;
+    ambientLight.diffuse = new BABYLON.Color3(1, 1, 1);
+    ambientLight.groundColor = new BABYLON.Color3(0.25, 0.35, 0.25);
 
-
-    ambientLight.diffuse =
-        new BABYLON.Color3(
-            1,
-            1,
-            1
-        );
-
-
-    ambientLight.groundColor =
-        new BABYLON.Color3(
-            0.25,
-            0.35,
-            0.25
-        );
-
-
-    const sun =
-        new BABYLON.DirectionalLight(
-            "sun",
-            new BABYLON.Vector3(-1, -2, 1),
-            scene
-        );
-
-
-    sun.position =
-        new BABYLON.Vector3(
-            20,
-            40,
-            -20
-        );
-
-
+    const sun = new BABYLON.DirectionalLight("sun", new BABYLON.Vector3(-1, -2, 1), scene);
+    sun.position = new BABYLON.Vector3(20, 40, -20);
     sun.intensity = 1.0;
 
+    const playerMesh = BABYLON.MeshBuilder.CreateBox("player", { width: 1, height: 2, depth: 1 }, scene);
+    playerMesh.position = new BABYLON.Vector3(0, 2.5, 0);
 
-    // ========================================================
-    // PLAYER
-    // ========================================================
+    const playerMaterial = new BABYLON.StandardMaterial("playerMaterial", scene);
+    playerMaterial.diffuseColor = new BABYLON.Color3(1.0, 0.6, 0.0);
+    playerMaterial.emissiveColor = new BABYLON.Color3(0.3, 0.12, 0.0);
+    playerMaterial.specularColor = new BABYLON.Color3(0, 0, 0);
+    playerMesh.material = playerMaterial;
 
-    const playerMesh =
-        BABYLON.MeshBuilder.CreateBox(
-            "player",
-            {
-                width: 1,
-                height: 2,
-                depth: 1
-            },
-            scene
-        );
-
-
-    playerMesh.position =
-        new BABYLON.Vector3(
-            0,
-            2.5,
-            0
-        );
-
-
-    const playerMaterial =
-        new BABYLON.StandardMaterial(
-            "playerMaterial",
-            scene
-        );
-
-
-    playerMaterial.diffuseColor =
-        new BABYLON.Color3(
-            1.0,
-            0.6,
-            0.0
-        );
-
-
-    playerMaterial.emissiveColor =
-        new BABYLON.Color3(
-            0.3,
-            0.12,
-            0.0
-        );
-
-
-    playerMaterial.specularColor =
-        new BABYLON.Color3(
-            0,
-            0,
-            0
-        );
-
-
-    playerMesh.material =
-        playerMaterial;
-
-
-    return {
-        scene,
-        playerMesh
-    };
-
+    return { scene, playerMesh };
 };
 
+// ============================================================
+// MOBILE CONTROLS
+// ============================================================
+
+function createMobileControls(inputSystem, cameraController) {
+    const isTouch = window.matchMedia("(pointer: coarse)").matches || navigator.maxTouchPoints > 0;
+    if (!isTouch || document.getElementById("mobileControls")) return;
+
+    const root = document.createElement("div");
+    root.id = "mobileControls";
+    root.style.cssText = "position:fixed;inset:0;z-index:40;pointer-events:none;touch-action:none;font-family:Arial,sans-serif;";
+    root.innerHTML = `
+        <div id="mobileJoystick" style="position:absolute;left:24px;bottom:28px;width:132px;height:132px;border:2px solid rgba(255,255,255,.25);border-radius:50%;background:rgba(0,0,0,.28);backdrop-filter:blur(6px);pointer-events:auto;">
+            <div id="mobileStick" style="position:absolute;left:41px;top:41px;width:46px;height:46px;border-radius:50%;background:rgba(251,191,36,.85);box-shadow:0 4px 18px rgba(0,0,0,.35);"></div>
+        </div>
+        <div style="position:absolute;right:22px;bottom:26px;display:flex;gap:14px;align-items:flex-end;pointer-events:auto;">
+            <button id="mobileDash" style="width:76px;height:76px;border-radius:50%;border:2px solid rgba(255,255,255,.2);background:rgba(0,0,0,.42);color:white;font-weight:900;font-size:11px;letter-spacing:.08em;">DASH</button>
+            <button id="mobileJump" style="width:92px;height:92px;border-radius:50%;border:2px solid rgba(251,191,36,.45);background:rgba(251,191,36,.25);color:#fef3c7;font-weight:900;font-size:13px;letter-spacing:.08em;">JUMP</button>
+        </div>
+        <div style="position:absolute;right:20px;top:92px;color:rgba(255,255,255,.38);font-size:10px;text-transform:uppercase;letter-spacing:.12em;">Swipe to look</div>`;
+    document.body.appendChild(root);
+
+    const joystick = document.getElementById("mobileJoystick");
+    const stick = document.getElementById("mobileStick");
+    const jump = document.getElementById("mobileJump");
+    const dash = document.getElementById("mobileDash");
+    const keys = inputSystem.keys;
+
+    const setMovement = (x, y) => {
+        const dead = 0.22;
+        keys.a = x < -dead;
+        keys.d = x > dead;
+        keys.w = y < -dead;
+        keys.s = y > dead;
+    };
+
+    let joyId = null;
+    const resetJoystick = () => {
+        joyId = null;
+        setMovement(0, 0);
+        stick.style.transform = "translate(0,0)";
+    };
+
+    const updateJoystick = event => {
+        const rect = joystick.getBoundingClientRect();
+        let dx = event.clientX - (rect.left + rect.width / 2);
+        let dy = event.clientY - (rect.top + rect.height / 2);
+        const max = 43;
+        const length = Math.hypot(dx, dy);
+        if (length > max) {
+            dx = dx / length * max;
+            dy = dy / length * max;
+        }
+        stick.style.transform = `translate(${dx}px,${dy}px)`;
+        setMovement(dx / max, dy / max);
+    };
+
+    joystick.addEventListener("pointerdown", event => {
+        event.preventDefault();
+        joyId = event.pointerId;
+        joystick.setPointerCapture?.(joyId);
+        updateJoystick(event);
+    });
+    joystick.addEventListener("pointermove", event => {
+        if (event.pointerId !== joyId) return;
+        event.preventDefault();
+        updateJoystick(event);
+    });
+    joystick.addEventListener("pointerup", event => {
+        if (event.pointerId === joyId) resetJoystick();
+    });
+    joystick.addEventListener("pointercancel", resetJoystick);
+
+    const tapAction = (button, key) => {
+        button.addEventListener("pointerdown", event => {
+            event.preventDefault();
+            keys[key] = true;
+            if (key === "space") keys.spaceJustPressed = true;
+            if (key === "shift") keys.shiftJustPressed = true;
+            button.style.transform = "scale(.92)";
+            setTimeout(() => {
+                keys[key] = false;
+                button.style.transform = "scale(1)";
+            }, 110);
+        });
+    };
+    tapAction(jump, "space");
+    tapAction(dash, "shift");
+
+    // Right-side swipe camera control.
+    let cameraTouch = null;
+    root.addEventListener("pointerdown", event => {
+        if (event.target === joystick || event.target === stick || event.target === jump || event.target === dash) return;
+        if (event.clientX < innerWidth * 0.42 || event.clientY > innerHeight - 145) return;
+        cameraTouch = { id: event.pointerId, x: event.clientX, y: event.clientY };
+    });
+    root.addEventListener("pointermove", event => {
+        if (!cameraTouch || event.pointerId !== cameraTouch.id) return;
+        const dx = event.clientX - cameraTouch.x;
+        const dy = event.clientY - cameraTouch.y;
+        cameraTouch.x = event.clientX;
+        cameraTouch.y = event.clientY;
+        cameraController.camera.alpha -= dx * 0.006;
+        cameraController.camera.beta = Math.max(
+            cameraController.camera.lowerBetaLimit,
+            Math.min(cameraController.camera.upperBetaLimit, cameraController.camera.beta - dy * 0.006)
+        );
+    });
+    root.addEventListener("pointerup", event => {
+        if (cameraTouch?.id === event.pointerId) cameraTouch = null;
+    });
+    root.addEventListener("pointercancel", () => { cameraTouch = null; });
+}
 
 // ============================================================
-// INITIALIZE GAME COMPONENTS
+// COIN COLLECTION SAFETY
+// ============================================================
+
+function installSafeCoinCollector() {
+    if (!window.LevelSystem) return;
+
+    LevelSystem.collectCoins = async function(playerMesh) {
+        if (!playerMesh || !this.coins?.length) return 0;
+        if (!this.coinCollectionInFlight) this.coinCollectionInFlight = new Set();
+
+        let gained = 0;
+        const radius = 1.35;
+
+        for (const coin of this.coins) {
+            if (!coin || !coin.isEnabled?.() || coin.metadata?.collected) continue;
+            if (this.coinCollectionInFlight.has(coin.name)) continue;
+            if (BABYLON.Vector3.Distance(playerMesh.position, coin.position) > radius) continue;
+
+            this.coinCollectionInFlight.add(coin.name);
+
+            try {
+                const { data, error } = await supabaseClient.rpc("collect_coin", {
+                    p_level_id: this.levelId || "level_1",
+                    p_coin_id: coin.name
+                });
+                if (error) throw error;
+
+                const result = Array.isArray(data) ? data[0] : data;
+
+                // A successful RPC is the only thing that permanently consumes the coin.
+                coin.metadata.collected = true;
+                coin.setEnabled(false);
+
+                if (result?.collected === true) {
+                    this.collectedCoinIds?.add(coin.name);
+                    this.coinCount = (this.coinCount || 0) + 1;
+                    gained++;
+                }
+            } catch (error) {
+                console.error(`Could not collect ${coin.name}:`, error);
+                coin.metadata.collected = false;
+                coin.setEnabled(true);
+            } finally {
+                this.coinCollectionInFlight.delete(coin.name);
+            }
+        }
+
+        return gained;
+    };
+}
+
+// ============================================================
+// INITIALIZE
 // ============================================================
 
 const { scene, playerMesh } = createScene();
-
-
-console.log(
-    "TOUCANTRIALS ENGINE STARTED"
-);
-
-console.log(
-    "Scene:",
-    scene
-);
-
-console.log(
-    "Player:",
-    playerMesh
-);
-
-
-// 1. Camera
-const cameraController =
-    new CameraController(
-        scene,
-        canvas,
-        playerMesh
-    );
-
-
-// 2. Input
-const inputSystem =
-    new InputManager();
-
-
-// 3. Physics
+const cameraController = new CameraController(scene, canvas, playerMesh);
+const inputSystem = new InputManager();
 PhysicsSystem.init(scene);
+installSafeCoinCollector();
 
+Promise.resolve(LevelSystem.init(scene)).then(() => hideGameLoader());
 
-// 4. Level
-LevelSystem.init(scene).then(() => {
-
-    hideGameLoader();
-
-});
-
-
-// 5. Player
-const playerController =
-    new PlayerController(
-        playerMesh,
-        cameraController.camera
-    );
-
-
-playerController.setRespawnPoint(
-    new BABYLON.Vector3(
-        0,
-        3,
-        0
-    )
-);
-
-
-// ============================================================
-// RUN STATE
-// ============================================================
+const playerController = new PlayerController(playerMesh, cameraController.camera);
+playerController.setRespawnPoint(new BABYLON.Vector3(0, 3, 0));
+createMobileControls(inputSystem, cameraController);
 
 const runState = {
-
-    startedAt:
-        performance.now(),
-
-    finished:
-        false,
-
-    elapsedMs:
-        0,
-
-    coins:
-        0
-
+    startedAt: performance.now(),
+    finished: false,
+    elapsedMs: 0,
+    coins: 0
 };
-
-
-window.toucanRunState =
-    runState;
-
-
-// ============================================================
-// UPDATE HUD
-// ============================================================
+window.toucanRunState = runState;
 
 function updateRunHUD() {
-
-    const timerElement =
-        document.getElementById(
-            "runTimer"
-        );
-
-
-    const coinElement =
-        document.getElementById(
-            "coinCounter"
-        );
-
-
+    const timerElement = document.getElementById("runTimer");
+    const coinElement = document.getElementById("coinCounter");
     if (timerElement) {
-
-        const totalSeconds =
-            runState.elapsedMs / 1000;
-
-
-        const minutes =
-            Math.floor(
-                totalSeconds / 60
-            );
-
-
-        const seconds =
-            Math.floor(
-                totalSeconds % 60
-            );
-
-
-        const milliseconds =
-            Math.floor(
-                runState.elapsedMs % 1000
-            );
-
-
-        timerElement.textContent =
-            `${String(minutes).padStart(2, "0")}:` +
-            `${String(seconds).padStart(2, "0")}.` +
-            `${String(milliseconds).padStart(3, "0")}`;
-
+        const total = runState.elapsedMs / 1000;
+        timerElement.textContent = `${String(Math.floor(total / 60)).padStart(2,"0")}:${String(Math.floor(total % 60)).padStart(2,"0")}.${String(Math.floor(runState.elapsedMs % 1000)).padStart(3,"0")}`;
     }
-
-
-    if (coinElement) {
-
-        coinElement.textContent =
-            String(runState.coins);
-
-    }
-
+    if (coinElement) coinElement.textContent = String(runState.coins);
 }
-
-
-// ============================================================
-// FINISH RUN
-// ============================================================
 
 async function finishRun() {
-
-    if (runState.finished) {
-        return;
-    }
-
-
+    if (runState.finished) return;
     runState.finished = true;
-
-
     if (window.ToucanScores) {
-
         try {
-
             await window.ToucanScores.saveRun({
-
-                levelId:
-                    "level_1",
-
-                completionTimeMs:
-                    Math.round(
-                        runState.elapsedMs
-                    ),
-
-                coinsCollected:
-                    runState.coins
-
+                levelId: "level_1",
+                completionTimeMs: Math.round(runState.elapsedMs),
+                coinsCollected: runState.coins
             });
-
-
-            console.log(
-                `ToucanTrials run saved: ` +
-                `${runState.coins} coins, ` +
-                `${Math.round(runState.elapsedMs)}ms`
-            );
-
-
         } catch (error) {
-
-            console.error(
-                "Could not save ToucanTrials run:",
-                error
-            );
-
+            console.error("Could not save ToucanTrials run:", error);
         }
-
     }
-
-
-    const timerElement =
-        document.getElementById(
-            "runTimer"
-        );
-
-
-    if (timerElement) {
-
-        timerElement.classList.add(
-            "text-emerald-400"
-        );
-
-    }
-
+    const timerElement = document.getElementById("runTimer");
+    if (timerElement) timerElement.classList.add("text-emerald-400");
 }
 
-
-// ============================================================
-// MAIN GAME LOOP
-// ============================================================
-
 scene.onBeforeRenderObservable.add(() => {
-
-    const deltaTime =
-        Math.min(
-            engine.getDeltaTime() / 1000,
-            0.05
-        );
-
-
-    // Player
-    playerController.update(
-        deltaTime,
-        inputSystem
-    );
-
-
-    // ========================================================
-    // COINS
-    // ========================================================
-
-LevelSystem.collectCoins(
-    playerMesh
-);
-
-runState.coins =
-    LevelSystem.coinCount;
-
-
-    // ========================================================
-    // TIMER
-    // ========================================================
-
-    if (!runState.finished) {
-
-        runState.elapsedMs =
-            performance.now() -
-            runState.startedAt;
-
-    }
-
-
+    const dt = Math.min(engine.getDeltaTime() / 1000, 0.05);
+    playerController.update(dt, inputSystem);
+    LevelSystem.collectCoins(playerMesh);
+    runState.coins = LevelSystem.coinCount || 0;
+    if (!runState.finished) runState.elapsedMs = performance.now() - runState.startedAt;
     updateRunHUD();
 
-
-    // ========================================================
-    // FINISH DETECTION
-    // ========================================================
-
-    if (
-        !runState.finished &&
-        LevelSystem.finishMesh &&
-        LevelSystem.finishMesh.isEnabled()
-    ) {
-
-        const distanceToFinish =
-            BABYLON.Vector3.Distance(
-                playerMesh.position,
-                LevelSystem.finishMesh.position
-            );
-
-
-        if (
-            distanceToFinish <= 6.5
-        ) {
-
-            finishRun();
-
-        }
-
+    if (!runState.finished && LevelSystem.finishMesh && LevelSystem.finishMesh.isEnabled()) {
+        if (BABYLON.Vector3.Distance(playerMesh.position, LevelSystem.finishMesh.position) <= 6.5) finishRun();
     }
 
-
-    // Camera
     cameraController.update();
-
-
-    // Level animations
-    LevelSystem.update(
-        deltaTime
-    );
-
-
-    // Input
+    LevelSystem.update(dt);
     inputSystem.postUpdate();
-
 });
 
-
-// ============================================================
-// RENDER LOOP
-// ============================================================
-
-console.log(
-    "TOUCANTRIALS RENDER LOOP STARTING"
-);
-
-
-engine.runRenderLoop(() => {
-
-    scene.render();
-
-});
-
-
-// ============================================================
-// WINDOW RESIZE
-// ============================================================
-
-window.addEventListener(
-    "resize",
-    () => {
-        engine.resize();
-    }
-);
+engine.runRenderLoop(() => scene.render());
+window.addEventListener("resize", () => engine.resize());
