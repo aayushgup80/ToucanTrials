@@ -19,10 +19,6 @@ function hideGameLoader() {
     setTimeout(() => loader.remove(), 450);
 }
 
-// ============================================================
-// SCENE
-// ============================================================
-
 const createScene = () => {
     const scene = new BABYLON.Scene(engine);
     scene.clearColor = new BABYLON.Color4(0.4, 0.7, 0.9, 1);
@@ -51,23 +47,25 @@ const createScene = () => {
 // ============================================================
 // MOBILE CONTROLS
 // ============================================================
+// Deliberately visible on desktop too, for testing and users
+// who prefer touch-style controls with a mouse.
+// ============================================================
 
 function createMobileControls(inputSystem, cameraController) {
-    const isTouch = window.matchMedia("(pointer: coarse)").matches || navigator.maxTouchPoints > 0;
-    if (!isTouch || document.getElementById("mobileControls")) return;
+    if (document.getElementById("mobileControls")) return;
 
     const root = document.createElement("div");
     root.id = "mobileControls";
     root.style.cssText = "position:fixed;inset:0;z-index:40;pointer-events:none;touch-action:none;font-family:Arial,sans-serif;";
     root.innerHTML = `
-        <div id="mobileJoystick" style="position:absolute;left:24px;bottom:28px;width:132px;height:132px;border:2px solid rgba(255,255,255,.25);border-radius:50%;background:rgba(0,0,0,.28);backdrop-filter:blur(6px);pointer-events:auto;">
+        <div id="mobileJoystick" style="position:absolute;left:24px;bottom:28px;width:132px;height:132px;border:2px solid rgba(255,255,255,.25);border-radius:50%;background:rgba(0,0,0,.28);backdrop-filter:blur(6px);pointer-events:auto;cursor:pointer;">
             <div id="mobileStick" style="position:absolute;left:41px;top:41px;width:46px;height:46px;border-radius:50%;background:rgba(251,191,36,.85);box-shadow:0 4px 18px rgba(0,0,0,.35);"></div>
         </div>
         <div style="position:absolute;right:22px;bottom:26px;display:flex;gap:14px;align-items:flex-end;pointer-events:auto;">
-            <button id="mobileDash" style="width:76px;height:76px;border-radius:50%;border:2px solid rgba(255,255,255,.2);background:rgba(0,0,0,.42);color:white;font-weight:900;font-size:11px;letter-spacing:.08em;">DASH</button>
-            <button id="mobileJump" style="width:92px;height:92px;border-radius:50%;border:2px solid rgba(251,191,36,.45);background:rgba(251,191,36,.25);color:#fef3c7;font-weight:900;font-size:13px;letter-spacing:.08em;">JUMP</button>
+            <button id="mobileDash" style="width:76px;height:76px;border-radius:50%;border:2px solid rgba(255,255,255,.2);background:rgba(0,0,0,.42);color:white;font-weight:900;font-size:11px;letter-spacing:.08em;cursor:pointer;">DASH</button>
+            <button id="mobileJump" style="width:92px;height:92px;border-radius:50%;border:2px solid rgba(251,191,36,.45);background:rgba(251,191,36,.25);color:#fef3c7;font-weight:900;font-size:13px;letter-spacing:.08em;cursor:pointer;">JUMP</button>
         </div>
-        <div style="position:absolute;right:20px;top:92px;color:rgba(255,255,255,.38);font-size:10px;text-transform:uppercase;letter-spacing:.12em;">Swipe to look</div>`;
+        <div style="position:absolute;right:20px;top:92px;color:rgba(255,255,255,.38);font-size:10px;text-transform:uppercase;letter-spacing:.12em;">Drag right side to look</div>`;
     document.body.appendChild(root);
 
     const joystick = document.getElementById("mobileJoystick");
@@ -120,24 +118,29 @@ function createMobileControls(inputSystem, cameraController) {
         if (event.pointerId === joyId) resetJoystick();
     });
     joystick.addEventListener("pointercancel", resetJoystick);
+    joystick.addEventListener("pointerleave", event => {
+        if (joyId === null) return;
+        if (event.pointerType === "mouse") resetJoystick();
+    });
 
     const tapAction = (button, key) => {
         button.addEventListener("pointerdown", event => {
             event.preventDefault();
             keys[key] = true;
-            if (key === "space") keys.spaceJustPressed = true;
-            if (key === "shift") keys.shiftJustPressed = true;
             button.style.transform = "scale(.92)";
-            setTimeout(() => {
-                keys[key] = false;
-                button.style.transform = "scale(1)";
-            }, 110);
         });
+        const release = () => {
+            keys[key] = false;
+            button.style.transform = "scale(1)";
+        };
+        button.addEventListener("pointerup", release);
+        button.addEventListener("pointercancel", release);
+        button.addEventListener("pointerleave", release);
     };
     tapAction(jump, "space");
     tapAction(dash, "shift");
 
-    // Right-side swipe camera control.
+    // Right-side drag camera control works with mouse OR touch.
     let cameraTouch = null;
     root.addEventListener("pointerdown", event => {
         if (event.target === joystick || event.target === stick || event.target === jump || event.target === dash) return;
@@ -169,9 +172,28 @@ function createMobileControls(inputSystem, cameraController) {
 function installSafeCoinCollector() {
     if (!window.LevelSystem) return;
 
+    // A respawn is allowed to restore any coin that was NOT
+    // confirmed by Supabase. Confirmed coins stay hidden.
+    LevelSystem.onPlayerRespawn = function() {
+        for (const coin of this.coins || []) {
+            if (!coin) continue;
+            const confirmed = this.collectedCoinIds?.has(coin.name);
+            const pending = this.coinCollectionInFlight?.has(coin.name);
+
+            if (confirmed || pending) {
+                coin.metadata.collected = true;
+                coin.setEnabled(false);
+            } else {
+                coin.metadata.collected = false;
+                coin.setEnabled(true);
+            }
+        }
+    };
+
     LevelSystem.collectCoins = async function(playerMesh) {
         if (!playerMesh || !this.coins?.length) return 0;
         if (!this.coinCollectionInFlight) this.coinCollectionInFlight = new Set();
+        if (!this.collectedCoinIds) this.collectedCoinIds = new Set();
 
         let gained = 0;
         const radius = 1.35;
@@ -182,6 +204,8 @@ function installSafeCoinCollector() {
             if (BABYLON.Vector3.Distance(playerMesh.position, coin.position) > radius) continue;
 
             this.coinCollectionInFlight.add(coin.name);
+            coin.metadata.collected = true;
+            coin.setEnabled(false);
 
             try {
                 const { data, error } = await supabaseClient.rpc("collect_coin", {
@@ -192,17 +216,20 @@ function installSafeCoinCollector() {
 
                 const result = Array.isArray(data) ? data[0] : data;
 
-                // A successful RPC is the only thing that permanently consumes the coin.
-                coin.metadata.collected = true;
-                coin.setEnabled(false);
-
                 if (result?.collected === true) {
-                    this.collectedCoinIds?.add(coin.name);
+                    this.collectedCoinIds.add(coin.name);
                     this.coinCount = (this.coinCount || 0) + 1;
                     gained++;
+                    console.log(`Coin collected: ${coin.name}`);
+                } else {
+                    // Database says it is still on the 24h cooldown.
+                    this.collectedCoinIds.add(coin.name);
+                    console.log(`Coin ${coin.name} is on cooldown.`);
                 }
             } catch (error) {
                 console.error(`Could not collect ${coin.name}:`, error);
+                // Request failed, so this coin remains collectible.
+                this.collectedCoinIds.delete(coin.name);
                 coin.metadata.collected = false;
                 coin.setEnabled(true);
             } finally {
@@ -223,7 +250,6 @@ const cameraController = new CameraController(scene, canvas, playerMesh);
 const inputSystem = new InputManager();
 PhysicsSystem.init(scene);
 installSafeCoinCollector();
-
 Promise.resolve(LevelSystem.init(scene)).then(() => hideGameLoader());
 
 const playerController = new PlayerController(playerMesh, cameraController.camera);
