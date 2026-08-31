@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>ToucanTrials - Create Profile</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="css/main.css">
+</head>
+<body class="bg-jungle-depths min-h-screen flex items-center justify-center text-white">
+<div class="w-full max-w-md p-6">
+<div class="glass-modal rounded-2xl p-8 border border-white/10 shadow-2xl">
+<p class="text-amber-400 text-xs font-black tracking-[.25em] uppercase">ToucanTrials</p>
+<h1 class="font-game text-4xl mt-2">CREATE PROFILE</h1>
+<p class="text-white/50 mt-2">A profile is required before you can enter the lobby.</p>
+<div id="message" class="hidden mt-5 rounded-lg p-3 bg-amber-500/10 border border-amber-500/20 text-amber-300 text-sm"></div>
+<form id="profileForm" class="mt-6 space-y-4">
+<label class="block"><span class="text-xs uppercase tracking-wider text-white/60">Username</span><input id="username" required minlength="3" maxlength="20" class="mt-1 w-full bg-black/40 border border-white/10 rounded-lg px-4 py-3 text-white outline-none focus:border-amber-400" placeholder="Runner99"></label>
+<button id="save" class="w-full rounded-lg bg-amber-400 hover:bg-amber-300 text-black font-black py-3 uppercase tracking-widest">Enter Lobby</button>
+</form>
+</div></div>
+<script src="js/supabase/client.js"></script><script src="js/supabase/auth.js"></script>
+<script>
+(async()=>{
+ const msg=document.getElementById('message'); const user=await ToucanAuth.getUser();
+ if(!user){location.href='auth.html';return;}
+ const existing=await ToucanAuth.getProfile(user);
+ if(existing){location.href='index.html';return;}
+ document.getElementById('username').value=user.user_metadata?.username||'';
+ document.getElementById('profileForm').addEventListener('submit',async e=>{
+  e.preventDefault(); const btn=document.getElementById('save'); btn.disabled=true; btn.textContent='SAVING...'; msg.classList.add('hidden');
+  try{await ToucanAuth.ensureProfile(document.getElementById('username').value); location.href='index.html';}
+  catch(err){msg.textContent=err?.message||'Could not create profile.';msg.classList.remove('hidden');btn.disabled=false;btn.textContent='Enter Lobby';}
+ });
+})();
+</script>
+</body></html>
