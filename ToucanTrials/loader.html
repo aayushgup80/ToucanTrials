@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ToucanTrials — Store</title>
+    <!-- ADDED: Dynamic Favicon to fix 404 error -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🦜</text></svg>">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            background-color: #050505;
+            background-image: 
+                radial-gradient(circle at 15% 50%, rgba(16, 185, 129, 0.08), transparent 40%),
+                radial-gradient(circle at 85% 30%, rgba(245, 158, 11, 0.08), transparent 40%);
+            color: #ffffff;
+            font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            overflow-x: hidden;
+        }
+
+        .glass-panel {
+            background: rgba(20, 20, 24, 0.65);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+        }
+
+        .glass-card {
+            background: linear-gradient(180deg, rgba(30, 30, 35, 0.8) 0%, rgba(20, 20, 24, 0.9) 100%);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: 0 10px 30px -10px rgba(0, 0, 0, 0.5);
+            transition: all 0.2s ease-out;
+        }
+
+        .glass-card:hover {
+            border-color: rgba(245, 158, 11, 0.3);
+            transform: translateY(-4px);
+            box-shadow: 0 20px 40px -10px rgba(0, 0, 0, 0.7), 0 0 20px rgba(245, 158, 11, 0.1);
+        }
+
+        .category-tab {
+            transition: all 0.2s ease;
+        }
+        
+        .category-tab.active {
+            background-color: rgba(245, 158, 11, 1);
+            color: #000;
+            box-shadow: 0 0 15px rgba(245, 158, 11, 0.4);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.2); }
+        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(245, 158, 11, 0.5); }
+
+        /* Animations */
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade-in { animation: fadeIn 0.4s ease-out forwards; }
+        
+        @keyframes pulse-glow { 
+            0% { box-shadow: 0 0 0 rgba(245, 158, 11, 0); } 
+            50% { box-shadow: 0 0 20px rgba(245, 158, 11, 0.3); } 
+            100% { box-shadow: 0 0 0 rgba(245, 158, 11, 0); } 
+        }
+    </style>
+</head>
+
+<body class="selection:bg-amber-500 selection:text-black">
+
+    <!-- LOADING OVERLAY -->
+    <div id="loadingOverlay" class="fixed inset-0 z-50 flex flex-col items-center justify-center bg-[#050505] transition-opacity duration-300">
+        <div class="w-16 h-16 border-4 border-amber-400/20 border-t-amber-400 rounded-full animate-spin mb-4"></div>
+        <h2 class="text-xl font-bold tracking-[0.2em] text-amber-400 uppercase">Connecting to Store...</h2>
+        <p class="text-sm text-white/50 mt-2">Loading inventory and balance</p>
+    </div>
+
+    <!-- MAIN APP -->
+    <div id="app" class="min-h-screen py-8 px-4 sm:px-6 opacity-0 transition-opacity duration-500 max-w-7xl mx-auto">
+        
+        <!-- HEADER -->
+        <header class="mb-10 flex flex-col md:flex-row md:items-center justify-between gap-6 relative z-10">
+            <div>
+                <button onclick="window.location.href='index.html'" class="mb-4 rounded-lg bg-white/5 border border-white/10 px-4 py-2 text-sm font-bold uppercase tracking-wider text-white/70 transition hover:bg-white/10 hover:text-white flex items-center gap-2">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
+                    Back to Canopy
+                </button>
+                <p class="text-xs uppercase tracking-[0.4em] text-emerald-400 font-bold mb-1">Equipment Hub</p>
+                <h1 class="text-4xl md:text-5xl font-black tracking-tight text-white drop-shadow-lg">
+                    TOUCANTRIALS <span class="text-amber-400">STORE</span>
+                </h1>
+            </div>
+
+            <!-- COIN BALANCE -->
+            <div class="glass-panel rounded-2xl px-6 py-4 flex flex-col items-end min-w-[200px]">
+                <p class="text-xs uppercase tracking-[0.2em] text-white/40 font-bold mb-1">Account Balance</p>
+                <div class="flex items-center gap-3">
+                    <div class="w-8 h-8 rounded-full bg-amber-400/20 flex items-center justify-center border border-amber-400/30">
+                        <span class="text-lg shadow-amber-400">🪙</span>
+                    </div>
+                    <span id="coinBalance" class="text-3xl font-black text-white tracking-tight">---</span>
+                </div>
+            </div>
+        </header>
+
+        <main>
+            <!-- CONTROLS -->
+            <section class="glass-panel rounded-xl p-3 mb-8 sticky top-4 z-30 shadow-2xl">
+                <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                    
+                    <!-- CATEGORIES -->
+                    <div id="categoryTabs" class="flex flex-wrap gap-2">
+                        <!-- Rendered dynamically -->
+                    </div>
+
+                    <!-- SEARCH & SORT -->
+                    <div class="flex flex-col sm:flex-row gap-2">
+                        <div class="relative">
+                            <span class="absolute left-3 top-1/2 -translate-y-1/2 text-white/30">🔍</span>
+                            <input id="searchInput" type="text" placeholder="Search items..." class="w-full sm:w-64 rounded-lg border border-white/10 bg-black/50 pl-10 pr-4 py-2 text-sm text-white outline-none placeholder:text-white/30 focus:border-amber-400/50 transition-colors">
+                        </div>
+                        <select id="sortSelect" class="rounded-lg border border-white/10 bg-black/50 px-4 py-2 text-sm text-white outline-none focus:border-amber-400/50 transition-colors cursor-pointer appearance-none">
+                            <option value="default">Sort: Default</option>
+                            <option value="price-low">Price: Low → High</option>
+                            <option value="price-high">Price: High → Low</option>
+                            <option value="name">Name: A → Z</option>
+                        </select>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ERROR MESSAGE (Hidden by default) -->
+            <div id="errorMessage" class="hidden mb-8 bg-red-500/10 border border-red-500/30 rounded-xl p-4 flex items-start gap-4">
+                <span class="text-2xl">⚠️</span>
+                <div>
+                    <h3 class="text-red-400 font-bold">Store Error</h3>
+                    <p id="errorText" class="text-sm text-red-200/70 mt-1"></p>
+                </div>
+            </div>
+
+            <!-- ITEMS GRID -->
+            <section id="itemsGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+                <!-- Rendered dynamically -->
+            </section>
+
+            <!-- EMPTY STATE -->
+            <div id="emptyState" class="hidden glass-panel rounded-2xl py-20 text-center mt-8">
+                <div class="text-5xl opacity-50 mb-4">🔍</div>
+                <h2 class="text-xl font-bold text-white uppercase tracking-widest">No Items Found</h2>
+                <p class="mt-2 text-sm text-white/40">Adjust your search or category filters.</p>
+            </div>
+        </main>
+    </div>
+
+    <!-- PURCHASE MODAL -->
+    <div id="purchaseModal" class="fixed inset-0 z-50 hidden items-center justify-center px-4 bg-black/80 backdrop-blur-sm transition-opacity">
+        <div class="glass-panel w-full max-w-md rounded-2xl p-1 border-amber-400/30 shadow-[0_0_50px_rgba(245,158,11,0.15)] transform transition-transform scale-95" id="purchaseModalInner">
+            <div class="bg-[#0f0f13] rounded-xl p-8 relative overflow-hidden">
+                
+                <!-- Background decoration -->
+                <div class="absolute -top-20 -right-20 w-40 h-40 bg-amber-500/10 rounded-full blur-3xl pointer-events-none"></div>
+
+                <div class="text-center relative z-10">
+                    <div id="modalCategory" class="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-400 mb-2">Category</div>
+                    <div id="modalIcon" class="text-6xl mb-4 drop-shadow-2xl">📦</div>
+                    <h2 id="modalTitle" class="text-3xl font-black text-white tracking-tight">Item Name</h2>
+                    <p id="modalDescription" class="mt-3 text-sm text-white/60 leading-relaxed max-w-[280px] mx-auto"></p>
+                    
+                    <div class="mt-6 inline-flex flex-col items-center bg-black/40 border border-white/5 rounded-xl p-4 min-w-[200px]">
+                        <span class="text-xs text-white/40 uppercase tracking-widest font-bold mb-1">Total Cost</span>
+                        <div id="modalPrice" class="text-2xl font-black text-amber-400 flex items-center gap-2">
+                            🪙 0
+                        </div>
+                    </div>
+                </div>
+
+                <div id="modalError" class="hidden mt-4 text-center text-sm font-bold text-red-400 bg-red-400/10 py-2 rounded-lg border border-red-400/20"></div>
+
+                <div class="mt-8 grid grid-cols-2 gap-3 relative z-10">
+                    <button onclick="StoreUI.closeModal()" id="modalCancelBtn" class="rounded-xl bg-white/5 border border-white/10 px-5 py-3.5 font-bold text-white/70 transition hover:bg-white/10 hover:text-white uppercase tracking-wider text-sm">
+                        Cancel
+                    </button>
+                    <button onclick="StoreEngine.confirmPurchase()" id="modalConfirmBtn" class="rounded-xl bg-amber-400 px-5 py-3.5 font-black text-black transition hover:bg-amber-300 hover:shadow-[0_0_20px_rgba(245,158,11,0.4)] uppercase tracking-wider text-sm flex justify-center items-center gap-2">
+                        Confirm Buy
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- SUPABASE SCRIPTS -->
+    <script src="js/supabase/client.js"></script>
+    <script src="js/supabase/auth.js"></script>
+    <script src="js/supabase/scores.js"></script>
+    <script src="js/game/skins.js"></script>
+    <!-- STORE APPLICATION LOGIC -->
+    <script>
+    /**
+     * ============================================================================
+     * TOUCANTRIALS: STORE ENGINE
+     * Connects directly to Supabase `store_items` and `player_store_items`.
+     * Includes resilient fallback for Clock Sync (JWT) errors.
+     * ============================================================================
+     */
+
+    // --- CONFIGURATION & MAPPING ---
+    
+// ============================================================
+// TOUCANTRIALS - PLAYER SKIN SYSTEM
+// ============================================================
+
+const INVENTORY_COLUMN_MAP = {
+        'default_toucan': 'default_toucan',
+        'swift_toucan': 'swift_toucan',
+        'default_trail': 'default_trail',
+        'emerald_trail': 'emerald_trail',
+        'default_effect': 'default_effect',
+        'jungle_effect': 'jungle_effect'
+    };
+
+    const ICON_MAP = {
+        'default_toucan': '🟡', 'swift_toucan': '⚡', 'default_trail': '💨', 
+        'emerald_trail': '🌿', 'default_effect': '✨', 'jungle_effect': '🍃'
+    };
+
+    // --- HARDCODED FALLBACK ARRAYS ---
+    // If Supabase throws a JWT/Timezone error, we load these dedicated arrays.
+    const FallbackItems = {
+        skins: [
+            { id: 'default_toucan', name: 'Default Toucan', category: 'skins', price: 0, description: 'The classic bird.', icon: '🟡', buff: {} },
+            { id: 'swift_toucan', name: 'Swift Toucan', category: 'skins', price: 500, description: 'Faster movement speed.', icon: '⚡', buff: { speedMultiplier: 1.1 } }
+        ],
+        trails: [
+            { id: 'default_trail', name: 'No Trail', category: 'trails', price: 0, description: 'Clean air.', icon: '💨', buff: {} },
+            { id: 'emerald_trail', name: 'Emerald Trail', category: 'trails', price: 300, description: 'Leaves a green path.', icon: '🌿', buff: { jumpMultiplier: 1.05 } }
+        ],
+        effects: [
+            { id: 'default_effect', name: 'No Effect', category: 'effects', price: 0, description: 'Standard gameplay.', icon: '✨', buff: {} },
+            { id: 'jungle_effect', name: 'Jungle Aura', category: 'effects', price: 1000, description: 'Jungle vibes. More coins.', icon: '🍃', buff: { coinMultiplier: 1.2 } }
+        ]
+    };
+
+// ============================================================
+// EQUIPPED ITEMS
+// ============================================================
+
+const PlayerSkinSystem = {
+
+    getEquipped() {
+
+        try {
+
+            const saved =
+                localStorage.getItem("toucanEquipped");
+
+            if (!saved) {
+                return {
+                    skins: "default_toucan",
+                    trails: "default_trail",
+                    effects: "default_effect"
+                };
+            }
+
+            const equipped = JSON.parse(saved);
+
+            return {
+                skins:
+                    equipped.skins || "default_toucan",
+
+                trails:
+                    equipped.trails || "default_trail",
+
+                effects:
+                    equipped.effects || "default_effect"
+            };
+
+        } catch (error) {
+
+            console.warn(
+                "Could not read equipped items:",
+                error
+            );
+
+            return {
+                skins: "default_toucan",
+                trails: "default_trail",
+                effects: "default_effect"
+            };
+        }
+    },
+
+
+    getEquippedSkin() {
+
+        const equipped = this.getEquipped();
+
+        return PLAYER_SKINS[equipped.skins] ||
+               PLAYER_SKINS.default_toucan;
+    },
+
+
+    getActiveBuffs() {
+
+        const equipped = this.getEquipped();
+
+        const skin =
+            PLAYER_SKINS[equipped.skins] ||
+            PLAYER_SKINS.default_toucan;
+
+        const trail =
+            PLAYER_TRAILS[equipped.trails] ||
+            PLAYER_TRAILS.default_trail;
+
+        const effect =
+            PLAYER_EFFECTS[equipped.effects] ||
+            PLAYER_EFFECTS.default_effect;
+
+
+        return {
+
+            speedMultiplier:
+                (skin.speedMultiplier || 1) *
+                (trail.speedMultiplier || 1) *
+                (effect.speedMultiplier || 1),
+
+            jumpMultiplier:
+                (skin.jumpMultiplier || 1) *
+                (trail.jumpMultiplier || 1) *
+                (effect.jumpMultiplier || 1),
+
+            dashMultiplier:
+                (skin.dashMultiplier || 1) *
+                (trail.dashMultiplier || 1) *
+                (effect.dashMultiplier || 1),
+
+            coinMultiplier:
+                (skin.coinMultiplier || 1) *
+                (trail.coinMultiplier || 1) *
+                (effect.coinMultiplier || 1)
+        };
+    },
+
+
+    applySkin(playerMesh) {
+
+        if (!playerMesh) {
+            console.warn(
+                "PlayerSkinSystem: player mesh missing."
+            );
+            return;
+        }
+
+        const skin = this.getEquippedSkin();
+
+        if (playerMesh.material) {
+
+            playerMesh.material.diffuseColor =
+                new BABYLON.Color3(...skin.bodyColor);
+
+            playerMesh.material.emissiveColor =
+                new BABYLON.Color3(...skin.emissiveColor);
+        }
+
+        playerMesh.scaling.setAll(skin.scale);
+
+        console.log(
+            "Equipped skin:",
+            skin.name
+        );
+    }
+
+};
+
+
+// ============================================================
+// GLOBAL ACCESS
+// ============================================================
+
+window.PLAYER_SKINS = PLAYER_SKINS;
+window.PLAYER_TRAILS = PLAYER_TRAILS;
+window.PLAYER_EFFECTS = PLAYER_EFFECTS;
+window.PlayerSkinSystem = PlayerSkinSystem;
+
+    // --- STATE MANAGEMENT ---
+    
+    const State = {
+        user: null,
+        coins: 0,
+        // Load fallback items by default so arrays are never empty
+        storeData: JSON.parse(JSON.stringify(FallbackItems)),
+        ownedItems: [],     
+        equipped: {
+            skins: 'default_toucan',
+            trails: 'default_trail',
+            effects: 'default_effect'
+        },
+        activeBuffs: {
+            speedMultiplier: 1, jumpMultiplier: 1, dashMultiplier: 1,
+            dashCooldownMultiplier: 1, coinMultiplier: 1
+        },
+        filters: {
+            category: 'skins', // Default tab
+            search: '',
+            sort: 'default'
+        },
+        pendingPurchase: null,
+        isProcessing: false
+    };
+
+    // --- CORE ENGINE ---
+
+    const StoreEngine = {
+        
+        async init() {
+            try {
+                // 1. Authenticate
+                State.user = await ToucanAuth.getUser();
+                if (!State.user) {
+                    console.warn("No user found. Using offline test mode.");
+                    State.user = { id: 'offline-test-user' };
+                    // If you want to force login, uncomment the next two lines:
+                    // window.location.href = 'auth.html';
+                    // return;
+                }
+
+                // 2. Load Local Preferences
+                this.loadEquippedState();
+
+                // 3. Fetch Remote Data (Wrapped in individual Try/Catch for max resilience against JWT errors)
+                try { await this.fetchBalance(); } catch (e) { console.warn("Balance fetch failed", e); }
+                
+                await this.fetchStoreItems(); // This now has a built-in fallback to the Arrays
+                
+                try { await this.fetchInventory(); } catch (e) { console.warn("Inventory fetch failed", e); }
+
+                // 4. Calculate final buffs
+                this.recalculateBuffs();
+                
+                // 5. Reveal UI
+                StoreUI.hideLoading();
+                StoreUI.renderAll();
+
+            } catch (error) {
+                console.error("Store Initialization critically failed:", error);
+                StoreUI.showError("Network error. Loaded store in offline mode.");
+                
+                // Force UI to render anyway so player isn't stuck on loading screen
+                StoreUI.hideLoading();
+                StoreUI.renderAll();
+            }
+        },
+
+        async fetchBalance() {
+            const total = await ToucanScores.getTotalCoins();
+            State.coins = Number(total || 0);
+        },
+
+        async fetchStoreItems() {
+            try {
+                const { data, error } = await supabaseClient
+                    .from('store_items')
+                    .select('*')
+                    .eq('available', true)
+                    .order('price', { ascending: true });
+
+                if (error) throw error;
+                
+                // If database has items, use them. If empty, keep the fallback items to prevent a blank store.
+                if (data && data.length > 0) {
+                    // Reset arrays
+                    State.storeData = { skins: [], trails: [], effects: [] };
+
+                    // Route DB items into their specific arrays based on category name
+                    data.forEach(item => {
+                        const cat = (item.category || 'skins').toLowerCase();
+                        const targetArray = cat.includes('skin') ? 'skins' : cat.includes('trail') ? 'trails' : 'effects';
+                        
+                        State.storeData[targetArray].push({
+                            id: item.id,
+                            name: item.name,
+                            category: targetArray,
+                            price: Number(item.price || 0),
+                            description: item.description || '',
+                            buff: item.buff || {},
+                            icon: ICON_MAP[item.id] || '📦'
+                        });
+                    });
+                } else {
+                    console.log("Supabase table is empty. Using local fallback arrays.");
+                }
+                
+            } catch (error) {
+                // FALLBACK: If Supabase throws JWT Clock error, inject hardcoded arrays directly
+                console.warn("Supabase Fetch Failed (Likely Clock Sync). Using Fallback Arrays.", error.message);
+                State.storeData = JSON.parse(JSON.stringify(FallbackItems));
+            }
+        },
+
+        async fetchInventory() {
+            if (State.user.id === 'offline-test-user') return; // Skip if in offline test mode
+
+            const { data, error } = await supabaseClient
+                .from('player_store_items')
+                .select('*')
+                .eq('player_id', State.user.id)
+                .single();
+
+            if (error) {
+                console.warn("User has no inventory row yet or fetch failed:", error.message);
+                return;
+            }
+
+            State.ownedItems = [];
+            for (const [itemId, colName] of Object.entries(INVENTORY_COLUMN_MAP)) {
+                if (data && data[colName] === true) {
+                    State.ownedItems.push(itemId);
+                }
+            }
+        },
+
+        loadEquippedState() {
+            try {
+                const saved = localStorage.getItem('toucanEquipped');
+                if (saved) {
+                    State.equipped = { ...State.equipped, ...JSON.parse(saved) };
+                }
+            } catch (e) {
+                console.warn("Failed to load local equip state.", e);
+            }
+        },
+
+        saveEquippedState() {
+            localStorage.setItem('toucanEquipped', JSON.stringify(State.equipped));
+            this.recalculateBuffs();
+        },
+
+        // Helper to find an item across all arrays
+        getItemById(id) {
+            return State.storeData.skins.find(i => i.id === id) || 
+                   State.storeData.trails.find(i => i.id === id) || 
+                   State.storeData.effects.find(i => i.id === id);
+        },
+
+        equipItem(itemId) {
+            const item = this.getItemById(itemId);
+            if (!item) return;
+
+            // Security check: Verify ownership (Price 0 items are implicitly owned)
+            if (!State.ownedItems.includes(itemId) && item.price > 0) {
+                StoreUI.showError("You cannot equip an item you don't own.");
+                return;
+            }
+
+            State.equipped[item.category] = item.id;
+            this.saveEquippedState();
+            StoreUI.renderItems();
+        },
+
+        recalculateBuffs() {
+            const buffs = {
+                speedMultiplier: 1, jumpMultiplier: 1, dashMultiplier: 1,
+                dashCooldownMultiplier: 1, coinMultiplier: 1
+            };
+
+            // Calculate buffs based on the equipped item in each dedicated array
+            ['skins', 'trails', 'effects'].forEach(cat => {
+                const eqId = State.equipped[cat];
+                const item = this.getItemById(eqId);
+                
+                if (item && item.buff) {
+                    Object.keys(buffs).forEach(stat => {
+                        if (typeof item.buff[stat] === 'number') {
+                            buffs[stat] *= item.buff[stat];
+                        }
+                    });
+                }
+            });
+
+            State.activeBuffs = buffs;
+            // Expose globally for the game engine to read
+            window.ToucanActiveBuffs = { ...buffs };
+        },
+
+        async confirmPurchase() {
+            if (State.isProcessing || !State.pendingPurchase) return;
+            
+            const item = State.pendingPurchase;
+            const column = INVENTORY_COLUMN_MAP[item.id];
+
+            if (!column) {
+                StoreUI.showModalError("This item is not configured for purchase yet.");
+                return;
+            }
+            if (State.ownedItems.includes(item.id)) {
+                StoreUI.showModalError("You already own this item.");
+                return;
+            }
+            if (State.coins < item.price) {
+                StoreUI.showModalError("Insufficient coins.");
+                return;
+            }
+
+            State.isProcessing = true;
+            StoreUI.setModalLoading(true);
+
+            try {
+                const newBalance = State.coins - item.price;
+
+                const { error: coinError } = await supabaseClient
+                    .from('profiles')
+                    .update({ total_coins: newBalance })
+                    .eq('id', State.user.id);
+                
+                if (coinError) throw new Error("Failed to deduct coins: " + coinError.message);
+
+                const { error: invError } = await supabaseClient
+                    .from('player_store_items')
+                    .update({ [column]: true })
+                    .eq('player_id', State.user.id);
+
+                if (invError) throw new Error("Purchase recorded, but inventory sync failed.");
+
+                State.coins = newBalance;
+                State.ownedItems.push(item.id);
+                
+                StoreUI.closeModal();
+                StoreUI.updateHeader();
+                StoreUI.renderItems();
+
+            } catch (error) {
+                console.error("Purchase Transaction Failed:", error);
+                StoreUI.showModalError(error.message || "An error occurred during purchase.");
+            } finally {
+                State.isProcessing = false;
+                StoreUI.setModalLoading(false);
+            }
+        }
+    };
+
+    // --- UI CONTROLLER ---
+
+    const StoreUI = {
+        
+        hideLoading() {
+            const el = document.getElementById('loadingOverlay');
+            el.style.opacity = '0';
+            setTimeout(() => el.style.display = 'none', 300);
+            
+            const app = document.getElementById('app');
+            app.style.opacity = '1';
+        },
+
+        showError(msg) {
+            const box = document.getElementById('errorMessage');
+            const text = document.getElementById('errorText');
+            text.textContent = msg;
+            box.classList.remove('hidden');
+            
+            // Auto hide error after 5s
+            setTimeout(() => box.classList.add('hidden'), 5000);
+        },
+
+        renderAll() {
+            this.updateHeader();
+            this.renderTabs();
+            this.renderItems();
+            this.setupEventListeners();
+        },
+
+        updateHeader() {
+            document.getElementById('coinBalance').textContent = State.coins.toLocaleString();
+        },
+
+        renderTabs() {
+            const container = document.getElementById('categoryTabs');
+            container.innerHTML = '';
+            
+            // Explicit requested tabs
+            const tabs = [
+                { id: 'skins', label: 'Skins' },
+                { id: 'trails', label: 'Trails' },
+                { id: 'effects', label: 'Effects' }
+            ];
+
+            tabs.forEach(tab => {
+                const btn = document.createElement('button');
+                const isActive = State.filters.category === tab.id;
+                
+                btn.className = `category-tab rounded-lg px-5 py-2.5 text-xs font-bold uppercase tracking-widest border border-white/5 ${
+                    isActive 
+                    ? 'active' 
+                    : 'bg-white/5 text-white/60 hover:bg-white/10 hover:text-white'
+                }`;
+                btn.textContent = tab.label;
+                
+                btn.onclick = () => {
+                    State.filters.category = tab.id;
+                    this.renderTabs();
+                    this.renderItems();
+                };
+                
+                container.appendChild(btn);
+            });
+        },
+
+        getFilteredItems() {
+            // Fetch directly from the selected tab's dedicated array
+            let filtered = [...(State.storeData[State.filters.category] || [])];
+
+            const q = State.filters.search.toLowerCase().trim();
+            if (q) {
+                filtered = filtered.filter(i => 
+                    i.name.toLowerCase().includes(q) || 
+                    i.description.toLowerCase().includes(q)
+                );
+            }
+
+            switch(State.filters.sort) {
+                case 'price-low': filtered.sort((a,b) => a.price - b.price); break;
+                case 'price-high': filtered.sort((a,b) => b.price - a.price); break;
+                case 'name': filtered.sort((a,b) => a.name.localeCompare(b.name)); break;
+            }
+
+            return filtered;
+        },
+
+        formatBuffs(buff = {}) {
+            const labels = [];
+            if (buff.speedMultiplier && buff.speedMultiplier !== 1) labels.push(`Spd +${Math.round((buff.speedMultiplier - 1) * 100)}%`);
+            if (buff.jumpMultiplier && buff.jumpMultiplier !== 1) labels.push(`Jmp +${Math.round((buff.jumpMultiplier - 1) * 100)}%`);
+            if (buff.dashMultiplier && buff.dashMultiplier !== 1) labels.push(`Dsh +${Math.round((buff.dashMultiplier - 1) * 100)}%`);
+            if (buff.coinMultiplier && buff.coinMultiplier !== 1) labels.push(`Coin +${Math.round((buff.coinMultiplier - 1) * 100)}%`);
+            
+            if (labels.length === 0) return `<span class="text-white/30 font-normal">Purely Cosmetic</span>`;
+            return `⚡ ${labels.join(' • ')}`;
+        },
+
+        renderItems() {
+            const grid = document.getElementById('itemsGrid');
+            const empty = document.getElementById('emptyState');
+            const items = this.getFilteredItems();
+
+            grid.innerHTML = '';
+
+            if (items.length === 0) {
+                grid.classList.add('hidden');
+                empty.classList.remove('hidden');
+                return;
+            }
+
+            grid.classList.remove('hidden');
+            empty.classList.add('hidden');
+
+            items.forEach((item, index) => {
+                // Treat items priced at 0 as implicitly owned
+                const isOwned = State.ownedItems.includes(item.id) || item.price === 0; 
+                const isEquipped = State.equipped[item.category] === item.id;
+                
+                let actionBtn = '';
+                
+                if (isOwned) {
+                    if (isEquipped) {
+                        actionBtn = `<button disabled class="w-full mt-5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 px-4 py-3 text-xs font-bold text-emerald-400 uppercase tracking-widest flex justify-center items-center gap-2">✓ Equipped</button>`;
+                    } else {
+                        actionBtn = `<button onclick="StoreEngine.equipItem('${item.id}')" class="w-full mt-5 rounded-xl bg-white/5 border border-white/10 px-4 py-3 text-xs font-bold text-white uppercase tracking-widest hover:bg-white/10 hover:border-emerald-400/50 hover:text-emerald-400 transition-all">Equip</button>`;
+                    }
+                } else {
+                    const canAfford = State.coins >= item.price;
+                    if (canAfford) {
+                        actionBtn = `<button onclick="StoreUI.openModal('${item.id}')" class="w-full mt-5 rounded-xl bg-amber-400 px-4 py-3 text-xs font-black text-black uppercase tracking-widest hover:bg-amber-300 hover:shadow-[0_0_15px_rgba(245,158,11,0.4)] transition-all">Buy Item</button>`;
+                    } else {
+                        actionBtn = `<button disabled class="w-full mt-5 rounded-xl bg-red-500/10 border border-red-500/20 px-4 py-3 text-xs font-bold text-red-400/60 uppercase tracking-widest">Need ${item.price - State.coins} 🪙</button>`;
+                    }
+                }
+
+                const delay = (index % 10) * 0.05; 
+                
+                const card = document.createElement('div');
+                card.className = `glass-card rounded-2xl p-6 flex flex-col h-full animate-fade-in relative overflow-hidden`;
+                card.style.animationDelay = `${delay}s`;
+                
+                if (isEquipped) {
+                    card.style.borderColor = 'rgba(16, 185, 129, 0.4)';
+                    card.style.boxShadow = 'inset 0 0 40px rgba(16, 185, 129, 0.05)';
+                }
+
+                card.innerHTML = `
+                    <div class="flex justify-between items-start mb-4">
+                        <span class="rounded-full bg-white/5 border border-white/10 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-white/50">
+                            ${item.category}
+                        </span>
+                        <span class="font-black ${item.price === 0 ? 'text-emerald-400' : 'text-amber-400'}">
+                            ${item.price === 0 ? 'FREE' : `🪙 ${item.price}`}
+                        </span>
+                    </div>
+                    
+                    <div class="text-5xl text-center my-4 filter drop-shadow-lg">${item.icon}</div>
+                    
+                    <h3 class="text-lg font-black tracking-wide text-white text-center mt-2">${item.name}</h3>
+                    <p class="text-sm text-white/50 text-center mt-2 flex-grow">${item.description}</p>
+                    
+                    <div class="mt-4 text-[10px] font-bold uppercase tracking-[0.15em] text-emerald-400/80 text-center bg-emerald-950/30 py-2 rounded-lg border border-emerald-500/10">
+                        ${this.formatBuffs(item.buff)}
+                    </div>
+                    
+                    ${actionBtn}
+                `;
+                grid.appendChild(card);
+            });
+        },
+
+        openModal(itemId) {
+            const item = StoreEngine.getItemById(itemId);
+            if (!item || State.ownedItems.includes(itemId) || State.coins < item.price) return;
+
+            State.pendingPurchase = item;
+            
+            document.getElementById('modalCategory').textContent = item.category;
+            document.getElementById('modalIcon').textContent = item.icon;
+            document.getElementById('modalTitle').textContent = item.name;
+            document.getElementById('modalDescription').textContent = item.description;
+            document.getElementById('modalPrice').innerHTML = `🪙 ${item.price}`;
+            
+            document.getElementById('modalError').classList.add('hidden');
+            
+            const modal = document.getElementById('purchaseModal');
+            const inner = document.getElementById('purchaseModalInner');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            
+            setTimeout(() => {
+                inner.classList.remove('scale-95');
+                inner.classList.add('scale-100');
+            }, 10);
+        },
+
+        closeModal() {
+            if (State.isProcessing) return;
+            
+            const modal = document.getElementById('purchaseModal');
+            const inner = document.getElementById('purchaseModalInner');
+            
+            inner.classList.remove('scale-100');
+            inner.classList.add('scale-95');
+            
+            setTimeout(() => {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+                State.pendingPurchase = null;
+            }, 150);
+        },
+
+        showModalError(msg) {
+            const errBox = document.getElementById('modalError');
+            errBox.textContent = msg;
+            errBox.classList.remove('hidden');
+        },
+
+        setModalLoading(isLoading) {
+            const btn = document.getElementById('modalConfirmBtn');
+            const cancel = document.getElementById('modalCancelBtn');
+            if (isLoading) {
+                btn.innerHTML = `<div class="w-4 h-4 border-2 border-black/20 border-t-black rounded-full animate-spin"></div> Processing...`;
+                btn.disabled = true;
+                cancel.disabled = true;
+                btn.classList.add('opacity-70');
+            } else {
+                btn.innerHTML = `Confirm Buy`;
+                btn.disabled = false;
+                cancel.disabled = false;
+                btn.classList.remove('opacity-70');
+            }
+        },
+
+        setupEventListeners() {
+            document.getElementById('searchInput').addEventListener('input', e => {
+                State.filters.search = e.target.value;
+                this.renderItems();
+            });
+            
+            document.getElementById('sortSelect').addEventListener('change', e => {
+                State.filters.sort = e.target.value;
+                this.renderItems();
+            });
+
+            document.getElementById('purchaseModal').addEventListener('click', e => {
+                if (e.target.id === 'purchaseModal') this.closeModal();
+            });
+        }
+    };
+
+    // --- BOOTSTRAP ---
+    document.addEventListener('DOMContentLoaded', () => StoreEngine.init());
+
+    </script>
+</body>
+</html>

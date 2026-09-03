@@ -33,6 +33,7 @@ const createScene = () => {
     sun.intensity = 1.0;
 
     const playerMesh = BABYLON.MeshBuilder.CreateBox("player", { width: 1, height: 2, depth: 1 }, scene);
+    
     playerMesh.position = new BABYLON.Vector3(0, 2.5, 0);
 
     const playerMaterial = new BABYLON.StandardMaterial("playerMaterial", scene);
@@ -41,6 +42,8 @@ const createScene = () => {
     playerMaterial.specularColor = new BABYLON.Color3(0, 0, 0);
     playerMesh.material = playerMaterial;
 
+    PlayerSkinSystem.applySkin(playerMesh);
+    
     return { scene, playerMesh };
 };
 
